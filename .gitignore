@@ -1,0 +1,5 @@
+/dist
+/dist-electron
+/electron
+/node_modules
+/npminstall-debug.log

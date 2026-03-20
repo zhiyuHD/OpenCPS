@@ -1,0 +1,103 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-gradient-to-br from-sky-blue via-warm-beige to-soft-pink;
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  }
+}
+
+@layer components {
+  .card-cute {
+    @apply bg-white/90 backdrop-blur-sm rounded-3xl shadow-lg p-6 border-4 border-white/50;
+  }
+  
+  .btn-game {
+    @apply px-6 py-3 rounded-full font-bold text-white shadow-lg transform transition-all hover:scale-105 active:scale-95;
+  }
+}
+
+/* 🚨 终极修复：解除输入框封印 - 但不影响其他元素布局 */
+input[type="text"],
+input[type="password"],
+input[type="number"],
+textarea,
+select {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  user-select: text !important;
+  cursor: text !important;
+  z-index: 999999 !important;
+  position: relative !important;
+}
+
+/* 🚨 复选框和单选框：不设置 position: relative，避免破坏布局 */
+input[type="checkbox"],
+input[type="radio"] {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+  cursor: pointer !important;
+  /* 不设置 position 和 z-index，保持原有布局 */
+}
+
+/* 输入框焦点时提升到最高层 */
+input[type="text"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+textarea:focus,
+select:focus {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+  z-index: 9999999 !important;
+}
+
+/* 确保按钮和可交互元素不受拖拽影响 */
+button,
+a,
+label {
+  -webkit-app-region: no-drag !important;
+  pointer-events: auto !important;
+}
+
+/* 🚨 确保弹窗内的输入框都在最上层 - 但不影响复选框 */
+.fixed input[type="text"],
+.fixed input[type="password"],
+.fixed input[type="number"],
+.fixed textarea,
+.fixed select,
+.absolute input[type="text"],
+.absolute input[type="password"],
+.absolute input[type="number"],
+.absolute textarea,
+.absolute select {
+  z-index: 9999999 !important;
+  pointer-events: auto !important;
+  position: relative !important;
+}
+
+/* 🚨 白色背景区域内的表单元素完全可交互 */
+.bg-white input[type="text"],
+.bg-white input[type="password"],
+.bg-white input[type="number"],
+.bg-white textarea,
+.bg-white select,
+.bg-white button {
+  pointer-events: auto !important;
+}
+
+/* 表单元素特别保护 - 但不影响复选框布局 */
+form input[type="text"],
+form input[type="password"],
+form input[type="number"],
+form textarea,
+form select,
+form button {
+  pointer-events: auto !important;
+}
+
+/* 确保所有内容区域可交互 */
+* {
+  -webkit-tap-highlight-color: transparent;
+}

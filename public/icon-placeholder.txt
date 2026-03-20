@@ -1,0 +1,9 @@
+如需自定义应用图标，请将 256x256 的 .ico 文件命名为 icon.ico 并放在此目录。
+
+如果没有图标文件，electron-builder 会使用默认图标。
+
+在线 ICO 转换工具：
+- https://www.icoconverter.com/
+- https://convertio.co/zh/png-ico/
+
+建议使用班级吉祥物或精灵形象作为图标。
