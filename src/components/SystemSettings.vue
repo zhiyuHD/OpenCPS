@@ -584,15 +584,18 @@ const confirmSystemReset = async () => {
   
   try {
     // 导入db以访问所有表
-    const { resetDBSystemData } = await import('../db.js');
+    const { resetDBSystemData, db } = await import('../db.js');
     
     // 直接调用里面的方法
-    await resetDBSystemData();
+    await resetDBSystemData(db);
     
-    alert('✅ 系统初始化完成！\n\n已重置为默认状态，包含5个测试学生。\n页面将自动刷新。');
+    alert('本地数据库已重置，正在销毁远程数据库');
+    // 将重置后的数据发送到服务器
+    await syncServerData();
+    alert('销毁完毕，即将刷新页面');
     
     // 刷新页面
-    // window.location.reload();
+    window.location.reload();
   } catch (error) {
     alert('❌ 初始化失败：' + error.message);
     console.error('系统初始化失败:', error);
@@ -781,7 +784,7 @@ const exportData = async () => {
       // 生成文件名
       const now = new Date();
       const dateStr = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}`;
-      const filename = `四2班宠物系统备份_${dateStr}.json`;
+      const filename = `OpenCPS_Backup_${dateStr}.json`;
       
       // 下载文件
       downloadJSON(result.data, filename);
@@ -859,12 +862,90 @@ const loadServerConfig = async () => {
 };
 
 const syncServerData = async () => {
-  alert('功能未实现');
-}
+  // 首先检查服务器可用性
+  const serverUrl = serverConfig._value;
+  try {
+    console.log('服务器地址：', serverUrl._value);
+    console.log('serverConfig：', serverConfig);
+    const response = await fetch(serverUrl + '/status');
+    const result = await response.json();
+    if (result.status === 'running') {
+      // 服务器可用，开始同步数据
+      console.log('status = running');
+      // alert('服务器可用，但功能暂未实现。');
+      // 将目前的数据打包为JSON格式
+      exportingData.value = true;
+      const json_data = await exportAllData();
+      // 发到服务器
+      // @app.post("/upload")
+// async def upload_json(data: Dict[str, Any]):
+    // """上传新的JSON数据"""
+    // global current_data, is_dirty, last_update_time
+    
+    // with save_lock:
+    //    current_data = data
+    //    is_dirty = True
+    //    last_update_time = time.time()
+    
+    // return {
+    //     "status": "success",
+    //     "message": "JSON data uploaded successfully"
+    // }
+      const response = await fetch(serverUrl + '/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(json_data)
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        alert('✅ 同步成功');
+        // 重新加载数据
+        loadData();
+      } else {
+        alert('❌ 同步失败：' + result.message);
+      }
+    } else {
+      alert('❌ 服务器不可用');
+
+    }
+  } catch (error) {
+    alert('❌ 同步失败：' + error.message);
+  }
+};
+const downloadServerData = async () => {
+  // 测试可用性
+  const serverUrl = serverConfig._value;
+  try {
+    const response = await fetch(serverUrl + '/status');
+    const result = await response.json();
+    if (result.status === 'running') {
+      // 下载服务器数据
+      const response = await fetch(serverUrl + '/get');
+      const result = await response.json();
+      const import_result = await importAllData(result.data);
+      if (result.success) {
+        alert('✅ 数据导入成功！\n\n页面将自动刷新以加载新数据。');
+        window.location.reload();
+      } else {
+        alert('❌ 导入失败：' + result.error);
+        importingData.value = false;
+      }
+
+    } else {
+      alert('服务器不可用');
+    }
+  } catch (error) {
+    alert('服务器不可用');
+  }
+};
+
 onMounted(() => {
   loadData();
   loadServerConfig(); // 加载服务端配置
 });
+
 </script>
 
 <template>
@@ -875,7 +956,7 @@ onMounted(() => {
           <button @click="exitModule" class="btn-game bg-gradient-to-r from-gray-400 to-gray-500 text-sm">
             ← 返回主控台
           </button>
-          <h1 class="text-3xl font-bold text-gray-800">⚙️ 系统配置中心</h1>
+          <h1 class="text-3xl font-bold text-gray-800">OpenCPS Setting</h1>
         </div>
       </div>
     </div>
@@ -883,28 +964,28 @@ onMounted(() => {
     <div class="absolute top-20 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-md p-4 z-10">
       <div class="max-w-7xl mx-auto flex gap-3">
         <button @click="currentTab = 'password'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'password' ? 'bg-gradient-to-r from-red-500 to-pink-500 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          🔒 密码设置
+          安全
         </button>
         <button @click="currentTab = 'points'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'points' ? 'bg-gradient-to-r from-blue-500 to-cyan-500 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          ⭐ 点评配置
+          点评
         </button>
         <button @click="currentTab = 'pets'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'pets' ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          🐾 精灵配置
+          宠物
         </button>
         <button @click="currentTab = 'shop'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'shop' ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          🛒 商店配置
+          商店
         </button>
         <button @click="currentTab = 'questions'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'questions' ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          📚 题库管理
+          题库
         </button>
         <button @click="currentTab = 'petLibrary'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'petLibrary' ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          🎨 精灵图鉴管理
+          图鉴
         </button>
         <button @click="currentTab = 'boss'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'boss' ? 'bg-gradient-to-r from-red-600 to-orange-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          👹 史诗BOSS设置
+          BOSS
         </button>
         <button @click="currentTab = 'backup'" :class="['px-6 py-3 rounded-xl font-bold text-lg transition-all', currentTab === 'backup' ? 'bg-gradient-to-r from-green-600 to-emerald-600 text-white shadow-lg' : 'bg-white text-gray-700 hover:bg-gray-100']">
-          💾 数据备份
+          备份
         </button>
       </div>
     </div>
@@ -1364,7 +1445,13 @@ onMounted(() => {
                     @click="syncServerData"
                     class="px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-xl font-bold text-lg hover:shadow-2xl transition-all"
                   >
-                    同步数据
+                    上传数据
+                  </button>
+                  <button
+                    @click="downloadServerData"
+                    class="px-8 py-4 bg-gradient-to-r from-red-500 to-red-700 text-white rounded-xl font-bold text-lg hover:shadow-2xl transition-all"
+                  >
+                    下载数据
                   </button>
                 </div>
               </div>

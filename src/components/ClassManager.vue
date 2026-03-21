@@ -306,21 +306,21 @@ onMounted(() => {
           <div class="lg:col-span-2 card-cute p-6">
             <div class="flex items-center justify-between mb-4">
               <h2 class="text-2xl font-bold text-gray-800">
-                👥 {{ currentClass?.name }} - 学生列表 ({{ students.length }}人)
+                {{ currentClass?.name }} - 学生列表 ({{ students.length }}人)
               </h2>
               <div class="flex gap-2">
                 <button @click="openBatchImport" class="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 transition-colors">
-                  📋 批量导入
+                  批量导入
                 </button>
                 <button @click="openStudentForm" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
-                  ➕ 添加学生
+                  添加学生
                 </button>
                 <button 
                   v-if="students.length > 0"
                   @click="handleBatchDeleteAll" 
                   class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-bold"
                 >
-                  🗑️ 批量删除
+                  批量删除
                 </button>
               </div>
             </div>
@@ -329,6 +329,7 @@ onMounted(() => {
               <table class="w-full">
                 <thead class="bg-gray-100">
                   <tr>
+                    <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">ID</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">学号</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">姓名</th>
                     <th class="px-4 py-3 text-left text-sm font-semibold text-gray-700">小组</th>
@@ -344,6 +345,7 @@ onMounted(() => {
                     :key="student.id"
                     class="border-b border-gray-200 hover:bg-gray-50"
                   >
+                    <td class="px-4 py-3 text-sm text-gray-600">{{ student.id }}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">{{ student.studentNumber }}</td>
                     <td class="px-4 py-3 text-sm font-semibold text-gray-800">{{ student.name }}</td>
                     <td class="px-4 py-3 text-sm text-gray-600">{{ student.group }}</td>

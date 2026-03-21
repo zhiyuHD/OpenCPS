@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { getAllStudents, batchUpdatePoints, isBirthday, sendBirthdayGift, updateStudentPoints, getSetting, saveSetting, getAllPetTypes, getPointRules, updateStudent, canChangePet, incrementChangePetCount, checkAdvancedUnlock } from '../db.js';
+import { getAllStudents, batchUpdatePoints, isBirthday, sendBirthdayGift, updateStudentPoints, getSetting, saveSetting, getAllPetTypes, getPointRules, updateStudent, canChangePet, incrementChangePetCount, checkAdvancedUnlock, exportAllData, importAllData } from '../db.js';
 import { getPetDisplay, isImageType } from '../petImageHelper.js';
 import { audioManager } from '../audioManager.js';
 import { audioSynthesizer } from '../audioSynthesizer.js';
@@ -13,7 +13,18 @@ import BirthdayModal from './BirthdayModal.vue';
 import ClassManager from './ClassManager.vue';
 import GroupManager from './GroupManager.vue';
 import ShopAndLottery from './ShopAndLottery.vue';
-import PetPK from './PetPK.vue';
+import PetPK from './PetPK.vue';// 添加函数
+const loadServerConfig = () => {
+  try {
+    const config = localStorage.getItem('serverConfig');
+    if (config) {
+      serverConfig.value = JSON.parse(config);
+      console.log('已加载服务器配置:', serverConfig.value);
+    }
+  } catch (error) {
+    console.error('加载服务器配置失败:', error);
+  }
+};
 import PetPokedex from './PetPokedex.vue';
 import SystemSettings from './SystemSettings.vue';
 import BossRaid from './BossRaid.vue';
@@ -49,6 +60,7 @@ const birthdayStudent = ref(null);
 const birthdayGift = ref(0);
 const customPoints = ref(0);
 const customReason = ref('');
+const autoSyncIntervalId = ref(null);
 
 // 宠物图片缓存
 const petDisplayCache = ref({});
@@ -77,6 +89,9 @@ const availablePetTypes = ref([]);
 
 // 🆕 精灵图片缓存（用于显示终极形态剪影）
 const petImages = ref({});
+
+const serverConfig = ref('https://ocps.zhiyuhub.top/');  // 默认服务器地址
+const exportingData = ref(false);  // 导出状态
 
 // 获取宠物真实名称
 const getPetRealName = (petTypeId) => {
@@ -657,10 +672,90 @@ const batchFeed = async () => {
     await loadStudents();
     selectedStudents.value.clear();
     showBatchPanel.value = false;
-    
+    // 同步数据库
+    await syncServerData();
     alert(`✅ 批量喂食完成！\n\n成功：${successCount} 人\n失败：${failCount} 人（积分不足）`);
   } catch (error) {
     alert('批量喂食失败：' + error.message);
+  }
+};
+
+const syncServerData = async () => {
+  // 首先检查服务器可用性
+  const serverUrl = serverConfig._value;
+  try {
+    console.log('服务器地址：', serverUrl._value);
+    console.log('serverConfig：', serverConfig);
+    const response = await fetch(serverUrl + '/status');
+    const result = await response.json();
+    if (result.status === 'running') {
+      // 服务器可用，开始同步数据
+      console.log('status = running');
+      // alert('服务器可用，但功能暂未实现。');
+      // 将目前的数据打包为JSON格式
+      exportingData.value = true;
+      const json_data = await exportAllData();
+      // 发到服务器
+      // @app.post("/upload")
+// async def upload_json(data: Dict[str, Any]):
+    // """上传新的JSON数据"""
+    // global current_data, is_dirty, last_update_time
+    
+    // with save_lock:
+    //    current_data = data
+    //    is_dirty = True
+    //    last_update_time = time.time()
+    
+    // return {
+    //     "status": "success",
+    //     "message": "JSON data uploaded successfully"
+    // }
+      const response = await fetch(serverUrl + '/upload', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(json_data)
+      });
+      const result = await response.json();
+      if (result.status === 'success') {
+        // 重新加载数据
+        await loadStudents();
+      } else {
+        alert('❌ 同步失败：' + result.message);
+      }
+    } else {
+      alert('❌ 服务器不可用');
+
+    }
+  } catch (error) {
+    alert('❌ 同步失败：' + error.message);
+  }
+};
+const downloadServerData = async () => {
+  // 测试可用性
+  const serverUrl = serverConfig._value;
+  try {
+    const response = await fetch(serverUrl + '/status');
+    const result = await response.json();
+    if (result.status === 'running') {
+      // 下载服务器数据
+      const response = await fetch(serverUrl + '/get');
+      const result = await response.json();
+      const import_result = await importAllData(result.data);
+      if (result.success) {
+        // alert('✅ 数据导入成功！\n\n页面将自动刷新以加载新数据。');
+        // window.location.reload();
+      } else {
+        alert('❌ 导入失败：' + result.error);
+        importingData.value = false;
+      }
+
+    } else {
+      alert('服务器不可用');
+    }
+  } catch (error) {
+    alert('服务器不可用');
   }
 };
 
@@ -698,7 +793,7 @@ const batchPlay = async () => {
     await loadStudents();
     selectedStudents.value.clear();
     showBatchPanel.value = false;
-    
+    await syncServerData();
     alert(`✅ 批量玩耍完成！\n\n成功：${successCount} 人\n失败：${failCount} 人（积分不足）`);
   } catch (error) {
     alert('批量玩耍失败：' + error.message);
@@ -840,7 +935,7 @@ const startBattle = async () => {
       desc1,
       desc2
     };
-    
+    await syncServerData();
     battleAnimating.value = false;
     await loadStudents();
   }, 1500);
@@ -1056,6 +1151,7 @@ const feedPetAction = async (cost, expGain, actionName) => {
     alert(result.message + (result.levelUp ? `\n🎉 精灵进化到${result.newStage}阶！` : ''));
     await loadStudents();
     closePetModal();
+    await syncServerData();
   } else {
     audioSynthesizer.playFail();
     alert(result.message);
@@ -1082,6 +1178,9 @@ const quickFeed = async (studentId, event) => {
     }
     
     await loadStudents();
+    // 同步数据
+    await syncServerData();
+
   } else {
     audioSynthesizer.playFail();
     alert(result.message);
@@ -1108,6 +1207,7 @@ const quickPlay = async (studentId, event) => {
     }
     
     await loadStudents();
+    await syncServerData();
   } else {
     audioSynthesizer.playFail();
     alert(result.message);
@@ -1193,6 +1293,7 @@ const changePetType = async (petTypeId) => {
       petStage: 1       // 阶段重置为1（萌蛋期）
     });
     
+    
     // 增加换宠次数
     await incrementChangePetCount(selectedPet.value.id);
     
@@ -1202,7 +1303,7 @@ const changePetType = async (petTypeId) => {
     
     showChangePetModal.value = false;
     showElementSelector.value = false;
-    
+    await syncServerData();
     // 🔧 修复白屏BUG：清空图片缓存，强制重新加载
     const key = `${selectedPet.value.id}_${oldPetTypeId}_${oldPetStage}`;
     delete petDisplayCache.value[key];
@@ -1227,65 +1328,21 @@ const applyPointRule = async (rule) => {
   closePetModal();
 };
 
-// 锁屏功能
-const toggleLock = async () => {
-  const systemPassword = await getSetting('password') || '1234';
-  const passwordEnabled = await getSetting('passwordEnabled') || false;
-  
-  if (!passwordEnabled) {
-    alert('请先在系统设置中启用密码保护功能！');
-    return;
-  }
-  
-  if (!isLocked.value) {
-    // 锁定
-    isLocked.value = true;
-    lockPassword.value = '';
-    lockMessageIndex.value = 0;
-    lockMessage.value = teacherMessages[0];
-    
-    // 启动消息轮播（每10秒切换）
-    lockMessageInterval.value = setInterval(() => {
-      lockMessageIndex.value = (lockMessageIndex.value + 1) % teacherMessages.length;
-      lockMessage.value = teacherMessages[lockMessageIndex.value];
-    }, 10000);
-  }
-};
-
-const unlockScreen = async () => {
-  const systemPassword = await getSetting('password') || '1234';
-  
-  if (lockPassword.value === systemPassword) {
-    isLocked.value = false;
-    lockPassword.value = '';
-    if (lockMessageInterval.value) {
-      clearInterval(lockMessageInterval.value);
-    }
-    audioSynthesizer.playSuccess();
-  } else {
-    audioSynthesizer.playFail();
-    alert('密码错误！');
-    lockPassword.value = '';
-  }
-};
 
 onMounted(() => {
   loadStudents();
-  
-  // 启动背景音乐
-  setTimeout(() => {
-    if (audioSettings.value.bgmEnabled) {
-      audioManager.playBGM('happy');
-    }
-  }, 1000);
+  loadServerConfig();
+  downloadServerData();
   
   // 添加键盘监听
   window.addEventListener('keypress', handleKeyPress);
-  
-  // 启动气泡巡逻（延迟10秒后开始，然后每20秒一次）
+
   setTimeout(() => {
-    triggerRandomBubbles(); // 立即触发一次
-    startBubblePatrol();
+    // startBubblePatrol();
+    autoSyncIntervalId.value = setInterval(() => {
+        syncServerData();
+      }, 10000
+    )
   }, 10000);
 });
 

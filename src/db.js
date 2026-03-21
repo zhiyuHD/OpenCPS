@@ -4,12 +4,12 @@ import Dexie from 'dexie';
 export const db = new Dexie('ClassPetSystem');
 
 // 定义数据库结构
-db.version(8).stores({
+db.version(9).stores({
   // 班级表
   classes: '++id, name, description, createdDate',
   
   // 学生表 - 新增changePetCount(换宠次数)和badges(勋章JSON)
-  students: '++id, classId, name, group, studentNumber, totalPoints, availablePoints, petStage, petStatus, consecutiveCheckIn, petExp, lastInteractionTime, birthday, petTypeId, changePetCount, badges',
+  students: '++id, password, classId, name, group, studentNumber, totalPoints, availablePoints, petStage, petStatus, consecutiveCheckIn, petExp, lastInteractionTime, birthday, petTypeId, changePetCount, badges',
   
   // 积分变动日志表
   logs: '++id, studentId, points, reason, timestamp',
@@ -74,7 +74,7 @@ export async function initTestData() {
   if (classCount === 0) {
     await db.classes.add({
       name: '',
-      description: '默认班级',
+      description: 'OpenCPS 默认班级',
       createdDate: new Date().toISOString()
     });
   }
@@ -91,97 +91,6 @@ export async function initTestData() {
   // 获取今天的日期（MM-DD格式）
   const today = new Date();
   const todayStr = `${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
-
-  // 插入 5 个测试学生 - 所有学生初始都在"未分组"，随机分配五行精灵
-  const testStudents = [
-    {
-      classId: 1,
-      name: '小明',
-      group: '未分组',
-      studentNumber: '001',
-      totalPoints: 100,
-      availablePoints: 100,
-      petStage: 1,
-      petStatus: 'happy',
-      consecutiveCheckIn: 3,
-      petExp: 0,
-      lastInteractionTime: new Date().toISOString(),
-      birthday: todayStr, // 今天生日
-      petTypeId: 1, // 炎火猴
-      changePetCount: 0,
-      badges: JSON.stringify([])
-    },
-    {
-      classId: 1,
-      name: '小红',
-      group: '未分组',
-      studentNumber: '002',
-      totalPoints: 150,
-      availablePoints: 150,
-      petStage: 1,
-      petStatus: 'happy',
-      consecutiveCheckIn: 5,
-      petExp: 30,
-      lastInteractionTime: new Date().toISOString(),
-      birthday: '05-20',
-      petTypeId: 2, // 水晶兽
-      changePetCount: 0,
-      badges: JSON.stringify([])
-    },
-    {
-      classId: 1,
-      name: '小刚',
-      group: '未分组',
-      studentNumber: '003',
-      totalPoints: 80,
-      availablePoints: 80,
-      petStage: 1,
-      petStatus: 'normal',
-      consecutiveCheckIn: 1,
-      petExp: 10,
-      lastInteractionTime: new Date().toISOString(),
-      birthday: '09-15',
-      petTypeId: 3, // 绿叶龙
-      changePetCount: 0,
-      badges: JSON.stringify([])
-    },
-    {
-      classId: 1,
-      name: '小美',
-      group: '未分组',
-      studentNumber: '004',
-      totalPoints: 200,
-      availablePoints: 200,
-      petStage: 2,
-      petStatus: 'excited',
-      consecutiveCheckIn: 7,
-      petExp: 80,
-      lastInteractionTime: new Date().toISOString(),
-      birthday: todayStr, // 今天生日
-      petTypeId: 4, // 金刚石
-      changePetCount: 0,
-      badges: JSON.stringify([])
-    },
-    {
-      classId: 1,
-      name: '小华',
-      group: '未分组',
-      studentNumber: '005',
-      totalPoints: 120,
-      availablePoints: 120,
-      petStage: 1,
-      petStatus: 'happy',
-      consecutiveCheckIn: 4,
-      petExp: 45,
-      lastInteractionTime: new Date().toISOString(),
-      birthday: '12-25',
-      petTypeId: 5, // 岩石巨人
-      changePetCount: 0,
-      badges: JSON.stringify([])
-    }
-  ];
-
-  await db.students.bulkAdd(testStudents);
   
   // 为每个学生添加初始日志
   const students = await db.students.toArray();
@@ -220,7 +129,7 @@ export async function initTestData() {
   // 初始化商品
   await initShopItems(1);
   
-  // 初始化默认配置
+  // 初始化默认配置ata();
   await initDefaultSettings();
   
   // 初始化精灵类型
@@ -1193,6 +1102,7 @@ export async function exportAllData() {
 // 导入数据（覆盖现有数据）
 export async function importAllData(jsonData) {
   try {
+    console.log('导入数据:', jsonData);
     // 验证数据格式
     if (!jsonData.tables || !jsonData.version) {
       throw new Error('数据格式不正确');
@@ -1313,11 +1223,27 @@ export async function getOwnedPetsStats(studentId) {
   }
 }
 
+// db.js 中添加完全重置函数
 export async function resetDBSystemData(db) {
   try {
-    await db.clear();
-    console.log('系统数据已重置');
+    // 关闭当前数据库连接
+    await db.close();
+    
+    // 删除整个数据库
+    await Dexie.delete('ClassPetSystem');
+    
+    // 重新打开数据库（这会自动重新创建表结构）
+    await db.open();
+    
+    // 重新初始化所有数据
+    await initTestData();
+    await initPetTypes();
+    await initBosses();
+    
+    console.log('✅ 数据库完全重置成功');
+    return { success: true };
   } catch (error) {
-    console.error('重置系统数据失败:', error);
+    console.error('数据库重置失败:', error);
+    throw error;
   }
 }

@@ -3,3 +3,6 @@
 /electron
 /node_modules
 /npminstall-debug.log
+/src-server/.venv
+/src-server/__pycache__
+/src-server/data.json
